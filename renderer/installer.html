@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>流萤QQ弹窗显示 - 安装</title>
+  <link rel="stylesheet" href="installer.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <div class="brand">
+        <div class="brand-mark">萤</div>
+        <div>
+          <h1>流萤QQ弹窗显示</h1>
+          <p>安全、简洁的 QQ 顶部弹幕</p>
+        </div>
+      </div>
+      <div class="steps">
+        <span class="step active" data-step="risk">1</span>
+        <span class="line"></span>
+        <span class="step" data-step="env">2</span>
+        <span class="line"></span>
+        <span class="step" data-step="install">3</span>
+      </div>
+    </header>
+
+    <section id="risk" class="panel">
+      <div class="panel-inner">
+        <h2>安装前请知悉</h2>
+        <div class="warning">
+          <div class="warning-icon">!</div>
+          <p>本程序依赖第三方 QQ 协议插件（LLOneBot + LiteLoaderQQNT）实时读取消息，可能存在账号风控、功能受限或封禁等风险；请确认你已了解并自愿承担相关风险后再继续。</p>
+        </div>
+      </div>
+      <footer>
+        <button id="agreeBtn" type="button" class="primary">我同意安装</button>
+      </footer>
+    </section>
+
+    <section id="env" class="panel hidden">
+      <div class="panel-inner">
+        <h2>环境检测与补全</h2>
+        <p class="sub">请确保以下前置条件就绪；带 <span class="req">*</span> 的项为必填。</p>
+        <div id="status" class="status-list">
+          <div class="loading">正在检测环境，请稍候…</div>
+        </div>
+      </div>
+      <footer>
+        <button id="recheck" type="button" class="secondary">重新检测</button>
+        <button id="install" type="button" class="primary" disabled>继续安装</button>
+      </footer>
+    </section>
+
+    <section id="installSection" class="panel hidden">
+      <div class="panel-inner">
+        <h2>正在安装</h2>
+        <div id="progressWrap" class="progress-wrap">
+          <div class="progress"><div id="progressBar" class="progress-bar" style="width:0%"></div></div>
+          <p id="progressText" class="progress-text">正在准备…</p>
+        </div>
+        <div id="done" class="done hidden">
+          <div class="done-check">✓</div>
+          <h3>完成安装</h3>
+          <div class="autostart-row">
+            <div>
+              <div class="autostart-title">开机自启动</div>
+              <div class="autostart-desc">低优先级 + 静默启动，仅驻留系统托盘</div>
+            </div>
+            <div class="autostart-state" id="autostartState">✗</div>
+            <button id="autostartBtn" type="button" class="secondary small">允许</button>
+          </div>
+          <p id="installError" class="error-text hidden"></p>
+        </div>
+      </div>
+      <footer>
+        <button id="finish" type="button" class="primary" disabled>完成</button>
+      </footer>
+    </section>
+  </main>
+  <script src="installer.js"></script>
+</body>
+</html>
+

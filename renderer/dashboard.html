@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>流萤QQ弹窗显示 - 消息</title>
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <div class="avatar-self" id="selfAvatar"></div>
+        <div class="sidebar-title">消息</div>
+      </div>
+      <div class="conv-list" id="convList"></div>
+    </aside>
+    <section class="main">
+      <header class="chat-head">
+        <div class="chat-title" id="chatTitle">选择一个会话开始聊天</div>
+        <div class="conn" id="connState">未连接</div>
+      </header>
+      <div class="messages" id="messages">
+        <div class="empty-tip">暂无消息</div>
+      </div>
+      <div class="quote-bar" id="quoteBar" hidden></div>
+      <div class="select-bar" id="selectBar" hidden>
+        <button id="forwardSingleBtn">逐条转发</button>
+        <button id="forwardMergeBtn">合并转发</button>
+        <button id="deleteSelectedBtn">删除</button>
+        <button id="cancelSelectBtn">取消</button>
+      </div>
+      <footer class="composer">
+        <div class="composer-tools">
+          <button id="emojiBtn" title="表情">表情</button>
+          <button id="fileBtn" title="发送文件">文件</button>
+        </div>
+        <div class="composer-row">
+          <div id="input" class="input" contenteditable="true" data-placeholder="输入消息，Enter 发送，Shift+Enter 换行"></div>
+          <button id="sendBtn">发送</button>
+        </div>
+        <div class="emoji-panel" id="emojiPanel" hidden>
+          <div class="emoji-tabs">
+            <button class="active" data-tab="builtin">黄脸表情</button>
+            <button data-tab="fav">收藏表情</button>
+          </div>
+          <div class="emoji-grid" id="emojiGrid"></div>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+  <div class="ctx" id="contextMenu" hidden></div>
+
+  <div class="modal-mask" id="forwardMask" hidden>
+    <div class="modal">
+      <div class="modal-head">选择转发目标</div>
+      <div class="modal-body">
+        <input id="targetSearch" placeholder="搜索好友或群" />
+        <div class="target-list" id="targetList"></div>
+      </div>
+      <div class="modal-foot">
+        <button id="forwardCancel">取消</button>
+        <button id="forwardOk">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="image-viewer" id="imageViewer" hidden>
+    <img id="imageViewerImg" />
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "name": "firefly-qq-danmaku",
+  "version": "1.0.0",
+  "description": "流萤QQ弹窗显示 - QQ消息顶部弹幕",
+  "main": "dist/main/main.js",
+  "author": "Firefly",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder --win portable --x64"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/ws": "^8.5.10",
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.5.4"
+  }
+}

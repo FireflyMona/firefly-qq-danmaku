@@ -1,0 +1,8 @@
+node_modules/
+dist/
+release/
+NapCat版/
+流萤消息助手（QQ）/
+scripts/
+*.bak
+*.log

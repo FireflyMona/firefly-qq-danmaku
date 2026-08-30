@@ -1,0 +1,20 @@
+appId: com.firefly.qqdanmaku
+productName: 流萤QQ弹窗显示
+artifactName: 流萤QQ弹窗显示.exe
+directories:
+  output: release
+  buildResources: assets
+files:
+  - dist/**/*
+  - renderer/**/*
+  - assets/tray.png
+  - assets/icon.ico
+  - package.json
+win:
+  target:
+    - portable
+  icon: assets/icon.ico
+  signAndEditExecutable: false
+portable:
+  artifactName: 流萤QQ弹窗显示.exe
+asar: true

@@ -1,0 +1,44 @@
+import { app } from 'electron';
+import * as fs from 'fs';
+import * as path from 'path';
+import { AppSettings } from '../shared/types';
+
+export const defaultSettings: AppSettings = {
+  wsUrl: 'ws://127.0.0.1:3001',
+  token: '',
+  reconnectMs: 3000,
+  showPrivate: true,
+  showGroup: true,
+  showNotice: true,
+  maxHeightPercent: 25,
+  fontSize: 16,
+  opacity: 0.92,
+  widthPercent: 33,
+  secondsPerLine: 5
+};
+
+let settings: AppSettings | null = null;
+
+export function settingsPath(): string {
+  return path.join(app.getPath('userData'), 'settings.json');
+}
+
+export function loadSettings(): AppSettings {
+  if (settings) return settings;
+  const file = settingsPath();
+  try {
+    const raw = fs.readFileSync(file, 'utf8');
+    const parsed = JSON.parse(raw);
+    settings = { ...defaultSettings, ...parsed };
+  } catch {
+    settings = { ...defaultSettings };
+  }
+  return settings as AppSettings;
+}
+
+export function saveSettings(next: AppSettings): AppSettings {
+  settings = { ...defaultSettings, ...next };
+  fs.mkdirSync(path.dirname(settingsPath()), { recursive: true });
+  fs.writeFileSync(settingsPath(), JSON.stringify(settings, null, 2), 'utf8');
+  return settings as AppSettings;
+}
