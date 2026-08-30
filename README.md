@@ -26,7 +26,7 @@
 
 ## 安装与使用
 
-1. 下载 Release 中的 `流萤QQ弹窗显示.exe`。
+1. 下载 Release 中的 `Firefly-QQ-Danmaku-Setup.exe`（GitHub 会重命名中文资产名，下载后可在本地改名为 `流萤QQ弹窗显示.exe`）。
 2. 运行安装器，按向导完成环境检测与安装。
 3. 安装完成后程序常驻系统托盘，并通过 OneBot WebSocket 接收 QQ 消息。
 
