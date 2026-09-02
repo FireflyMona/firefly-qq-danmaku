@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import WebSocket from 'ws';
 import { AppSettings, ChatPeer, ConnectionState, FavoriteEmoji, OB11Event, Segment, TargetContact } from '../shared/types';
+import { translate } from '../shared/i18n';
 
 interface PendingCall {
   resolve: (value: unknown) => void;
@@ -62,7 +63,7 @@ export class OneBotClient extends EventEmitter {
 
   private connect(): void {
     if (this.stopped || !this.settings) return;
-    this.emit('state', { connected: false, message: '正在连接 ' + this.settings.wsUrl } as ConnectionState);
+    this.emit('state', { connected: false, message: translate(this.settings?.language || 'zh', 'conn.connecting', { url: this.settings.wsUrl }) } as ConnectionState);
     let url = this.settings.wsUrl || 'ws://127.0.0.1:3001';
     if (this.settings.token) {
       url += (url.includes('?') ? '&' : '?') + 'access_token=' + encodeURIComponent(this.settings.token);
@@ -80,7 +81,7 @@ export class OneBotClient extends EventEmitter {
     this.ws = ws;
 
     ws.on('open', () => {
-      this.emit('state', { connected: true, message: '已连接 ' + url } as ConnectionState);
+      this.emit('state', { connected: true, message: translate(this.settings?.language || 'zh', 'conn.connected', { url }) } as ConnectionState);
       this.refresh().catch(() => { /* non-fatal */ });
       this.getLoginInfo().then((id) => { if (id !== null) this.selfId = id; }).catch(() => { /* ignore */ });
     });
@@ -90,12 +91,12 @@ export class OneBotClient extends EventEmitter {
     });
 
     ws.on('error', () => {
-      this.emit('state', { connected: false, message: '连接错误' } as ConnectionState);
+      this.emit('state', { connected: false, message: translate(this.settings?.language || 'zh', 'conn.error') } as ConnectionState);
     });
 
     ws.on('close', () => {
       if (this.ws === ws) this.ws = null;
-      this.emit('state', { connected: false, message: '连接已断开' } as ConnectionState);
+      this.emit('state', { connected: false, message: translate(this.settings?.language || 'zh', 'conn.closed') } as ConnectionState);
       for (const [, p] of this.pending) {
         clearTimeout(p.timer);
         p.reject(new Error('connection closed'));
@@ -144,14 +145,14 @@ export class OneBotClient extends EventEmitter {
 
   call(action: string, params: Record<string, unknown> = {}, timeoutMs = 5000): Promise<any> {
     if (!this.isConnected()) {
-      return Promise.reject(new Error('OneBot 未连接'));
+      return Promise.reject(new Error(translate(this.settings?.language || 'zh', 'conn.onebotNotConnected')));
     }
     const echo = ++this.echo;
     const payload = { action, params, echo };
     return new Promise<any>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(echo);
-        reject(new Error('OneBot 请求超时: ' + action));
+        reject(new Error(translate(this.settings?.language || 'zh', 'conn.onebotTimeout', { action })));
       }, timeoutMs);
       this.pending.set(echo, { resolve, reject, timer });
       try {

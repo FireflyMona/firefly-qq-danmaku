@@ -8,7 +8,7 @@ function createBanner(item) {
   el.dataset.id = item.id;
   const label = document.createElement('div');
   label.className = 'label';
-  label.textContent = item.label || (item.kind === 'private' ? '私信' : '群聊');
+  label.textContent = item.label || window.__t(item.kind === 'private' ? 'common.private' : 'common.group');
   const body = document.createElement('div');
   body.className = 'body';
   const avatar = document.createElement('img');

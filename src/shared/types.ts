@@ -55,6 +55,7 @@ export interface BannerItem {
   height?: number;
   special?: boolean;
   dnd?: boolean;
+  source?: 'qq' | 'wechat';
 }
 
 export interface AppSettings {
@@ -64,11 +65,18 @@ export interface AppSettings {
   showPrivate: boolean;
   showGroup: boolean;
   showNotice: boolean;
+  scopeSpecialPrivate: boolean;
+  scopeNormalPrivate: boolean;
+  scopeNormalGroup: boolean;
+  wechatPrivate: boolean;
+  wechatGroup: boolean;
   maxHeightPercent: number;
   fontSize: number;
   opacity: number;
   widthPercent: number;
   secondsPerLine: number;
+  enableWechat: boolean;
+  language: 'zh' | 'en';
 }
 
 export interface EnvCheckResult {
@@ -135,3 +143,20 @@ export interface TargetContact {
   id: number;
   name: string;
 }
+
+// 微信消息负载：由 wechatauto 监听器解析后传给主进程
+export interface WechatMessagePayload {
+  id: string;
+  isSelf: boolean;
+  isGroup: boolean;
+  roomid: string;
+  sender: string;
+  content: string;
+  type: string;
+  ts: number;
+  nickname: string;
+  roomName: string;
+  avatar: string;
+  selfWxid: string;
+}
+

@@ -11,73 +11,125 @@
       <div class="brand">
         <div class="brand-mark">萤</div>
         <div>
-          <h1>流萤QQ弹窗显示</h1>
-          <p>安全、简洁的 QQ 顶部弹幕</p>
+          <h1 data-i18n="app.name">流萤QQ弹窗显示</h1>
+          <p data-i18n="installer.tagline">安全、简洁的 QQ 顶部弹幕</p>
         </div>
       </div>
       <div class="steps">
-        <span class="step active" data-step="risk">1</span>
+        <span class="step" data-step="guide">1</span>
         <span class="line"></span>
-        <span class="step" data-step="env">2</span>
+        <span class="step" data-step="risk">2</span>
         <span class="line"></span>
-        <span class="step" data-step="install">3</span>
+        <span class="step" data-step="env">3</span>
+        <span class="line"></span>
+        <span class="step" data-step="install">4</span>
       </div>
     </header>
 
-    <section id="risk" class="panel">
+    <section id="lang" class="panel">
       <div class="panel-inner">
-        <h2>安装前请知悉</h2>
-        <div class="warning">
-          <div class="warning-icon">!</div>
-          <p>本程序依赖第三方 QQ 协议插件（LLOneBot + LiteLoaderQQNT）实时读取消息，可能存在账号风控、功能受限或封禁等风险；请确认你已了解并自愿承担相关风险后再继续。</p>
+        <h2 data-i18n="installer.langTitle">选择语言</h2>
+        <div class="lang-buttons">
+          <button id="zhBtn" type="button" class="lang-btn active">中文</button>
+          <button id="enBtn" type="button" class="lang-btn">English</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="guide" class="panel hidden">
+      <div class="panel-inner">
+        <h2 data-i18n="guide.title">插件准备</h2>
+        <p class="sub" data-i18n="guide.sub">请先完成以下 QQ 与微信消息源准备，再进入风险确认与环境检测。</p>
+        <div class="guide-block">
+          <h3 data-i18n="guide.qqTitle">QQ 消息源（LiteLoaderQQNT + LLOneBot）</h3>
+          <ol class="guide-steps">
+            <li><span data-i18n="guide.qq.step1">下载并安装官方 NTQQ，版本需为已验证的 9.9.26-44343。</span> <a class="link" data-url="https://im.qq.com/pcqq" data-i18n="installer.openGuide">打开教程 / 下载页</a></li>
+            <li><span data-i18n="guide.qq.step2">下载并安装 LiteLoaderQQNT 到 QQNT 版本目录（注入 app_launcher/LiteLoader.js）。</span> <a class="link" data-url="https://github.com/LiteLoaderQQNT/LiteLoaderQQNT" data-i18n="installer.openGuide">打开教程 / 下载页</a></li>
+            <li><span data-i18n="guide.qq.step3">下载 LLOneBot 插件，放入 LiteLoaderQQNT 的 plugins 目录。</span> <a class="link" data-url="https://github.com/LLOneBot/LLOneBot" data-i18n="installer.openGuide">打开教程 / 下载页</a></li>
+            <li><span data-i18n="guide.qq.step4">启动 QQ 并登录需要接收消息的账号。</span></li>
+            <li><span data-i18n="guide.qq.step5">打开 LLOneBot 设置，启用 OneBot v11 正向 WebSocket，端口 3001（默认无 token）。</span></li>
+          </ol>
+        </div>
+        <div class="guide-block">
+          <h3 data-i18n="guide.wechatTitle">微信消息源（微信 4.x + wechatauto-replica）</h3>
+          <ol class="guide-steps">
+            <li><span data-i18n="guide.wechat.step1">安装 Python 3.9+（安装时勾选 Add to PATH）。</span> <a class="link" data-url="https://www.python.org/downloads/" data-i18n="installer.openGuide">打开教程 / 下载页</a></li>
+            <li><span data-i18n="guide.wechat.step2">打开终端执行：pip install wechatauto-replica。</span> <a class="link" data-url="https://github.com/fanyuantaier/wechatauto-replica" data-i18n="installer.openGuide">打开教程 / 下载页</a></li>
+            <li><span data-i18n="guide.wechat.step3">安装或升级官方微信 4.x（推荐 4.1.x），并登录需要接收消息的账号。</span> <a class="link" data-url="https://weixin.qq.com/" data-i18n="installer.openGuide">打开教程 / 下载页</a></li>
+            <li><span data-i18n="guide.wechat.step4">保持微信窗口打开，程序将从本地数据库读取消息。</span></li>
+          </ol>
         </div>
       </div>
       <footer>
-        <button id="agreeBtn" type="button" class="primary">我同意安装</button>
+        <button id="guideNext" type="button" class="primary" data-i18n="guide.next">下一步</button>
+      </footer>
+    </section>
+
+    <section id="risk" class="panel hidden">
+      <div class="panel-inner">
+        <h2 data-i18n="installer.riskTitle">安装前请知悉</h2>
+        <div class="risk-summary">
+          <div class="risk-summary-title" data-i18n="risk.versionTitle">版本与风险提示</div>
+          <ul>
+            <li data-i18n="risk.versionQq">QQ 已验证版本：9.9.26-44343（其他版本可能导致插件无法运行）。</li>
+            <li data-i18n="risk.versionWechat">微信：需官方 4.x（推荐 4.1.x；过低请升级）。</li>
+            <li data-i18n="risk.versionRisk">第三方协议插件可能触发账号风控、功能受限或封禁，请自愿承担风险。</li>
+          </ul>
+        </div>
+        <div class="warning">
+          <div class="warning-icon">!</div>
+          <div>
+            <p data-i18n="installer.riskQq">本程序依赖第三方 QQ 协议插件（LLOneBot + LiteLoaderQQNT）实时读取消息，可能存在账号风控、功能受限或封禁等风险；请确认你已了解并自愿承担相关风险后再继续。</p>
+            <p class="wx-risk" data-i18n="installer.riskWechat">启用微信消息时，本程序会通过 wechatauto-replica 读取微信 4.x 本地消息数据库，同样可能存在账号风控、功能受限或封禁等风险；请谨慎使用并自行承担后果。</p>
+          </div>
+        </div>
+      </div>
+      <footer>
+        <button id="agreeBtn" type="button" class="primary" data-i18n="installer.agree">我同意安装</button>
       </footer>
     </section>
 
     <section id="env" class="panel hidden">
       <div class="panel-inner">
-        <h2>环境检测与补全</h2>
-        <p class="sub">请确保以下前置条件就绪；带 <span class="req">*</span> 的项为必填。</p>
+        <h2 data-i18n="installer.envTitle">环境检测与补全</h2>
+        <p class="sub"><span data-i18n="installer.envSub">请确保以下前置条件就绪；带</span> <span class="req">*</span> <span data-i18n="installer.envSubTail">的项为必填。</span></p>
         <div id="status" class="status-list">
           <div class="loading">正在检测环境，请稍候…</div>
         </div>
       </div>
       <footer>
-        <button id="recheck" type="button" class="secondary">重新检测</button>
-        <button id="install" type="button" class="primary" disabled>继续安装</button>
+        <button id="recheck" type="button" class="secondary" data-i18n="installer.recheck">重新检测</button>
+        <button id="install" type="button" class="primary" disabled data-i18n="installer.install">继续安装</button>
       </footer>
     </section>
 
     <section id="installSection" class="panel hidden">
       <div class="panel-inner">
-        <h2>正在安装</h2>
+        <h2 data-i18n="installer.installing">正在安装</h2>
         <div id="progressWrap" class="progress-wrap">
           <div class="progress"><div id="progressBar" class="progress-bar" style="width:0%"></div></div>
           <p id="progressText" class="progress-text">正在准备…</p>
         </div>
         <div id="done" class="done hidden">
           <div class="done-check">✓</div>
-          <h3>完成安装</h3>
+          <h3 data-i18n="installer.done">完成安装</h3>
           <div class="autostart-row">
             <div>
-              <div class="autostart-title">开机自启动</div>
-              <div class="autostart-desc">低优先级 + 静默启动，仅驻留系统托盘</div>
+              <div class="autostart-title" data-i18n="installer.autostart">开机自启动</div>
+              <div class="autostart-desc" data-i18n="installer.autostartDesc">低优先级 + 静默启动，仅驻留系统托盘</div>
             </div>
             <div class="autostart-state" id="autostartState">✗</div>
-            <button id="autostartBtn" type="button" class="secondary small">允许</button>
+            <button id="autostartBtn" type="button" class="secondary small" data-i18n="installer.allow">允许</button>
           </div>
           <p id="installError" class="error-text hidden"></p>
         </div>
       </div>
       <footer>
-        <button id="finish" type="button" class="primary" disabled>完成</button>
+        <button id="finish" type="button" class="primary" disabled data-i18n="installer.finish">完成</button>
       </footer>
     </section>
   </main>
+  <script src="i18n.js"></script>
   <script src="installer.js"></script>
 </body>
 </html>
-

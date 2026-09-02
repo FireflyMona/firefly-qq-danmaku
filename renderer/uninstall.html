@@ -2,18 +2,19 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <title>确认卸载</title>
+  <title>Confirm uninstall</title>
   <link rel="stylesheet" href="uninstall.css" />
 </head>
 <body>
   <div class="dialog">
-    <div class="title">确认卸载软件</div>
-    <div class="desc">卸载后程序将从本机移除，是否继续？</div>
+    <div class="title" data-i18n="uninstall.title">确认卸载软件</div>
+    <div class="desc" data-i18n="uninstall.desc">卸载后程序将从本机移除，是否继续？</div>
     <div class="actions">
-      <button class="btn cancel" id="cancelBtn">取消</button>
-      <button class="btn confirm" id="confirmBtn">确认</button>
+      <button class="btn cancel" id="cancelBtn" data-i18n="uninstall.cancel">取消</button>
+      <button class="btn confirm" id="confirmBtn" data-i18n="uninstall.confirm">确认</button>
     </div>
   </div>
+  <script src="i18n.js"></script>
   <script src="uninstall.js"></script>
 </body>
 </html>

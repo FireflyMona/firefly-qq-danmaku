@@ -8,15 +8,24 @@
 <body>
   <div class="menu">
     <button class="item" id="toggleBtn">
-      <span id="showText" class="word show">显示</span><span class="plain slash">/</span><span id="hideText" class="word hide">隐藏</span><span class="plain suffix">弹幕</span>
+      <span id="showText" class="word show" data-i18n="tray.show">显示</span><span class="plain slash">/</span><span id="hideText" class="word hide" data-i18n="tray.hide">隐藏</span><span class="plain suffix" data-i18n="tray.danmaku">弹幕</span>
     </button>
     <div class="divider"></div>
-    <button class="item" id="refreshBtn">刷新</button>
+    <div class="scope-title" data-i18n="tray.control">控制</div>
+    <div class="scope-board" id="boardQq">
+      <div class="board-title">QQ</div>
+    </div>
+    <div class="scope-board" id="boardWechat">
+      <div class="board-title" data-i18n="tray.wechat">微信</div>
+    </div>
     <div class="divider"></div>
-    <button class="item" id="uninstallBtn">卸载软件</button>
+    <button class="item" id="refreshBtn" data-i18n="tray.refresh">刷新</button>
     <div class="divider"></div>
-    <button class="item" id="quitBtn">退出程序</button>
+    <button class="item" id="uninstallBtn" data-i18n="tray.uninstall">卸载软件</button>
+    <div class="divider"></div>
+    <button class="item" id="quitBtn" data-i18n="tray.quit">退出程序</button>
   </div>
+  <script src="i18n.js"></script>
   <script src="tray-menu.js"></script>
 </body>
 </html>

@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('api', {
   reportHeight: (id: string, height: number) => ipcRenderer.send('banner:height', { id, height }),
   onBannerConfig: (cb: (config: { fontSize: number; opacity: number; width: number }) => void) => ipcRenderer.on('banner:config', (_event, config) => cb(config)),
   onConnectionState: (cb: (state: ConnectionState) => void) => ipcRenderer.on('connection:state', (_event, state: ConnectionState) => cb(state)),
+  onWechatState: (cb: (info: { state: string; message: string; loggedIn: boolean }) => void) => ipcRenderer.on('wechat:state', (_event, info) => cb(info)),
   trayGetVisibility: (): Promise<boolean> => ipcRenderer.invoke('tray:get-visibility'),
   trayToggle: (): Promise<boolean> => ipcRenderer.invoke('tray:toggle'),
   trayQuit: (): Promise<void> => ipcRenderer.invoke('tray:quit'),
@@ -24,5 +25,13 @@ contextBridge.exposeInMainWorld('api', {
   trayUninstallCancel: (): Promise<void> => ipcRenderer.invoke('tray:uninstall-cancel'),
   trayUninstallConfirm: (): Promise<void> => ipcRenderer.invoke('tray:uninstall-confirm'),
   trayRefresh: (): Promise<boolean> => ipcRenderer.invoke('tray:refresh'),
-  onTrayVisibility: (cb: (visible: boolean) => void) => ipcRenderer.on('tray:visibility', (_event, visible: boolean) => cb(visible))
+  onTrayVisibility: (cb: (visible: boolean) => void) => ipcRenderer.on('tray:visibility', (_event, visible: boolean) => cb(visible)),
+  trayGetScope: (): Promise<{ scopeSpecialPrivate: boolean; scopeNormalPrivate: boolean; scopeNormalGroup: boolean; wechatPrivate: boolean; wechatGroup: boolean }> => ipcRenderer.invoke('tray:get-scope'),
+  traySetScope: (patch: { scopeSpecialPrivate?: boolean; scopeNormalPrivate?: boolean; scopeNormalGroup?: boolean; wechatPrivate?: boolean; wechatGroup?: boolean }): Promise<{ scopeSpecialPrivate: boolean; scopeNormalPrivate: boolean; scopeNormalGroup: boolean; wechatPrivate: boolean; wechatGroup: boolean }> => ipcRenderer.invoke('tray:set-scope', patch),
+  traySubmenuShow: (kind: string, top: number): void => ipcRenderer.send('tray:submenu-show', { kind, top }),
+  onTraySubmenuData: (cb: (data: { kind: 'qq' | 'wechat'; scope: { scopeSpecialPrivate: boolean; scopeNormalPrivate: boolean; scopeNormalGroup: boolean; wechatPrivate: boolean; wechatGroup: boolean } }) => void) => ipcRenderer.on('tray:submenu-data', (_event, data) => cb(data)),
+  getLanguage: (): Promise<'zh' | 'en'> => ipcRenderer.invoke('i18n:get-language'),
+  setLanguage: (lang: 'zh' | 'en'): Promise<'zh' | 'en'> => ipcRenderer.invoke('i18n:set-language', lang),
+  getMessages: (lang: 'zh' | 'en'): Promise<Record<string, string>> => ipcRenderer.invoke('i18n:get-messages', lang),
+  onLanguageChanged: (cb: (lang: 'zh' | 'en') => void) => ipcRenderer.on('i18n:changed', (_event, lang: 'zh' | 'en') => cb(lang))
 });

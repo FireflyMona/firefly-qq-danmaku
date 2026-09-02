@@ -6,3 +6,7 @@ NapCat版/
 scripts/
 *.bak
 *.log
+__pycache__/
+*.pyc
+_dl.ps1
+__已封存_请勿使用.txt

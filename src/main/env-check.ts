@@ -1,9 +1,11 @@
 import { execFile } from 'child_process';
+import * as net from 'net';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import WebSocket from 'ws';
 import { AppSettings, EnvCheckResult } from '../shared/types';
+import { translate } from '../shared/i18n';
 
 const KNOWN_QQ_VERSIONS = ['9.9.26-44343'];
 
@@ -144,6 +146,57 @@ function checkWs(url: string, token: string, timeoutMs = 1500): Promise<boolean>
   });
 }
 
+function checkTcp(port: number, host = '127.0.0.1', timeoutMs = 1200): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (ok: boolean) => { if (!settled) { settled = true; resolve(ok); } };
+    const sock = net.connect({ host, port });
+    const timer = setTimeout(() => { try { sock.destroy(); } catch { /* ignore */ } done(false); }, timeoutMs);
+    sock.on('connect', () => { clearTimeout(timer); try { sock.end(); } catch { /* ignore */ } done(true); });
+    sock.on('error', () => { clearTimeout(timer); done(false); });
+  });
+}
+
+function execFileText(cmd: string, args: string[]): Promise<string> {
+  return new Promise((resolve) => {
+    execFile(cmd, args, { windowsHide: true, timeout: 4000 }, (err, stdout) => {
+      resolve(err ? '' : String(stdout || '').trim());
+    });
+  });
+}
+
+const WEIXIN_PATHS = [
+  path.join(programFiles, 'Tencent', 'Weixin', 'Weixin.exe'),
+  path.join(programFilesX86, 'Tencent', 'Weixin', 'Weixin.exe'),
+  path.join(localAppData, 'Programs', 'Tencent', 'Weixin', 'Weixin.exe'),
+  path.join(localAppData, 'Tencent', 'Weixin', 'Weixin.exe')
+];
+
+function findWeixinExe(): string | null {
+  for (const p of WEIXIN_PATHS) if (exists(p)) return p;
+  return null;
+}
+
+async function readWechatVersion(exe: string): Promise<string | null> {
+  try {
+    const out = await execFileText('powershell.exe', [
+      '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-Command', "(Get-Item -LiteralPath '" + exe + "').VersionInfo.FileVersion"
+    ]);
+    return out || null;
+  } catch {
+    return null;
+  }
+}
+
+async function runPythonCheck(code: string): Promise<string> {
+  try {
+    return await execFileText('python', ['-c', code]);
+  } catch {
+    return '';
+  }
+}
+
 function normalizeQQVersion(v: string): string {
   const m = v.match(/(\d+\.\d+\.\d+)[.\-](\d+)/);
   if (m) return m[1] + '-' + m[2];
@@ -183,23 +236,23 @@ export async function runEnvChecks(settings: AppSettings): Promise<EnvCheckResul
     id: 'windows',
     ok: true,
     level: 'ok',
-    title: 'Windows 系统',
-    detail: '当前系统版本：Windows ' + osVersion + '，满足运行要求。',
-    guidance: '无需额外操作。'
+    title: translate(settings.language, 'env.windows'),
+    detail: translate(settings.language, 'env.windows.detail', { v: osVersion }),
+    guidance: translate(settings.language, 'env.noAction')
   });
 
   const qqFound = QQ_PATHS.some(exists);
-  let qqDetail = qqFound ? '已检测到 NTQQ 安装。' : '未在常见安装路径中检测到 QQ NT。';
+  let qqDetail = qqFound ? translate(settings.language, 'env.ntqq.detail.found') : translate(settings.language, 'env.ntqq.detail.notfound');
   const qqReg = await regQuery('HKCU\\Software\\Tencent\\QQ');
-  if (!qqFound && qqReg) qqDetail = '已在注册表中检测到 QQ 相关记录。';
+  if (!qqFound && qqReg) qqDetail = translate(settings.language, 'env.ntqq.detail.reg');
   results.push({
     id: 'ntqq',
     ok: qqFound || !!qqReg,
     level: qqFound || qqReg ? 'ok' : 'error',
     required: true,
-    title: 'NTQQ（QQ 客户端）',
+    title: translate(settings.language, 'env.ntqq'),
     detail: qqDetail,
-    guidance: '请安装 Windows 版 QQ NT。',
+    guidance: translate(settings.language, 'env.ntqq.guidance'),
     link: 'https://im.qq.com/pcqq'
   });
 
@@ -210,11 +263,11 @@ export async function runEnvChecks(settings: AppSettings): Promise<EnvCheckResul
     ok: llonebotFound,
     level: llonebotFound ? 'ok' : 'error',
     required: true,
-    title: 'LLOneBot + LiteLoaderQQNT',
+    title: translate(settings.language, 'env.bot'),
     detail: llonebotFound
-      ? '已检测到 LiteLoaderQQNT 启动器与 LLOneBot 插件。'
-      : (liteLoaderJs ? '已检测到 LiteLoader.js 启动器，但未找到 LLOneBot 插件。' : '未检测到 LiteLoaderQQNT / LLOneBot 插件。'),
-    guidance: '请安装 LiteLoaderQQNT 并将 LLOneBot 放入其 plugins 目录，随后在 QQ 中启用正向 WebSocket（默认 127.0.0.1:3001）。',
+      ? translate(settings.language, 'env.bot.detail.found')
+      : (liteLoaderJs ? translate(settings.language, 'env.bot.detail.launcher') : translate(settings.language, 'env.bot.detail.none')),
+    guidance: translate(settings.language, 'env.bot.guidance'),
     link: llonebotFound ? undefined : 'https://github.com/LLOneBot/LLOneBot'
   });
 
@@ -224,9 +277,9 @@ export async function runEnvChecks(settings: AppSettings): Promise<EnvCheckResul
       id: 'qq_version',
       ok: false,
       level: 'warn',
-      title: 'QQ 版本匹配',
-      detail: '已检测到 QQ，但无法读取具体版本号。',
-      guidance: '建议使用本插件已验证适配的 QQ 版本：' + KNOWN_QQ_VERSIONS.join('、') + '。错误版本可能导致插件无法运行。',
+      title: translate(settings.language, 'env.qqVer'),
+      detail: translate(settings.language, 'env.qqVer.detail.none'),
+      guidance: translate(settings.language, 'env.qqVer.guidance', { versions: KNOWN_QQ_VERSIONS.join('、') }),
       link: 'https://github.com/LLOneBot/LLOneBot'
     });
   } else if (KNOWN_QQ_VERSIONS.includes(qqVer)) {
@@ -234,18 +287,18 @@ export async function runEnvChecks(settings: AppSettings): Promise<EnvCheckResul
       id: 'qq_version',
       ok: true,
       level: 'ok',
-      title: 'QQ 版本匹配',
-      detail: '当前 QQ 版本 ' + qqVer + ' 在本插件已验证适配范围内。',
-      guidance: '无需额外操作。'
+      title: translate(settings.language, 'env.qqVer'),
+      detail: translate(settings.language, 'env.qqVer.detail.ok', { v: qqVer }),
+      guidance: translate(settings.language, 'env.noAction')
     });
   } else {
     results.push({
       id: 'qq_version',
       ok: false,
       level: 'warn',
-      title: 'QQ 版本匹配',
-      detail: '当前 QQ 版本 ' + qqVer + ' 不在已验证适配版本内。',
-      guidance: '错误版本可能导致插件无法运行；建议更换为：' + KNOWN_QQ_VERSIONS.join('、') + '，并重新注入 LiteLoaderQQNT。',
+      title: translate(settings.language, 'env.qqVer'),
+      detail: translate(settings.language, 'env.qqVer.detail.mismatch', { v: qqVer }),
+      guidance: translate(settings.language, 'env.qqVer.guidance.mismatch', { versions: KNOWN_QQ_VERSIONS.join('、') }),
       link: 'https://github.com/LLOneBot/LLOneBot'
     });
   }
@@ -256,9 +309,62 @@ export async function runEnvChecks(settings: AppSettings): Promise<EnvCheckResul
     id: 'onebot_ws',
     ok: wsOk,
     level: wsOk ? 'ok' : 'warn',
-    title: 'OneBot 正向 WebSocket',
-    detail: wsOk ? '成功连接 ' + wsUrl : '无法连接 ' + wsUrl + '（请确认 QQ 已登录且插件已启用）。',
-    guidance: '启动官方 QQ 并登录需要接收消息的账号，打开 LLOneBot 设置，启用正向 WebSocket 并确保端口为 3001。'
+    title: translate(settings.language, 'env.ws'),
+    detail: wsOk ? translate(settings.language, 'env.ws.detail.ok', { url: wsUrl }) : translate(settings.language, 'env.ws.detail.fail', { url: wsUrl }),
+    guidance: translate(settings.language, 'env.ws.guidance')
+  });
+
+
+  // —— 微信（4.x + wechatauto-replica）前置检测 ——
+  const weixinExe = findWeixinExe();
+  const weixinVer = weixinExe ? await readWechatVersion(weixinExe) : null;
+  const weixinOk = !!weixinExe && !!weixinVer && /^4\./.test(weixinVer);
+
+  if (!weixinExe) {
+    results.push({
+      id: 'wechat_installed',
+      ok: false,
+      level: 'warn',
+      title: translate(settings.language, 'env.wechat'),
+      detail: translate(settings.language, 'env.wechat.detail.none'),
+      guidance: translate(settings.language, 'env.wechat.guidance.none'),
+      link: 'https://weixin.qq.com/'
+    });
+  } else if (!weixinOk) {
+    results.push({
+      id: 'wechat_installed',
+      ok: false,
+      level: 'warn',
+      title: translate(settings.language, 'env.wechat'),
+      detail: translate(settings.language, 'env.wechat.detail.old', { v: weixinVer || translate(settings.language, 'common.unknown') }),
+      guidance: translate(settings.language, 'env.wechat.guidance.old'),
+      link: 'https://weixin.qq.com/'
+    });
+  } else {
+    results.push({
+      id: 'wechat_installed',
+      ok: true,
+      level: 'ok',
+      title: translate(settings.language, 'env.wechat'),
+      detail: translate(settings.language, 'env.wechat.detail.ok', { v: weixinVer }),
+      guidance: translate(settings.language, 'env.wechat.guidance.ok')
+    });
+  }
+
+  const pythonOk = (await runPythonCheck('print("pyok")')).includes('pyok');
+  const wechatautoOk = (await runPythonCheck('import wechatauto; print("waok")')).includes('waok');
+  results.push({
+    id: 'wechat_python',
+    ok: pythonOk && wechatautoOk,
+    level: (pythonOk && wechatautoOk) ? 'ok' : 'warn',
+    title: translate(settings.language, 'env.python'),
+    detail: (pythonOk && wechatautoOk)
+      ? translate(settings.language, 'env.python.detail.ok')
+      : (pythonOk ? translate(settings.language, 'env.python.detail.pythonOnly') : translate(settings.language, 'env.python.detail.none')),
+    guidance: pythonOk
+      ? translate(settings.language, 'env.python.guidance.pythonOnly')
+      : translate(settings.language, 'env.python.guidance.none'),
+    link: 'https://github.com/fanyuantaier/wechatauto-replica'
   });
 
   return results;

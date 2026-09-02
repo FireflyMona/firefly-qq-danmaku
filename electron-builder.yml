@@ -10,6 +10,9 @@ files:
   - assets/tray.png
   - assets/icon.ico
   - package.json
+extraResources:
+  - from: python/wechat_listener.py
+    to: python/wechat_listener.py
 win:
   target:
     - portable

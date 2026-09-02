@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>子托盘</title>
+  <link rel="stylesheet" href="tray-submenu.css" />
+</head>
+<body>
+  <div class="panel">
+    <div class="title" id="subTitle">范围</div>
+    <div class="section qq-only">
+      <div class="group-title" data-i18n="submenu.special">特别关注</div>
+      <label class="opt"><input type="checkbox" id="scopeSpecialPrivate" /><span data-i18n="common.private">私信</span></label>
+      <div class="group-title" data-i18n="submenu.normal">普通对话</div>
+      <label class="opt"><input type="checkbox" id="scopeNormalPrivate" /><span data-i18n="common.private">私信</span></label>
+      <label class="opt"><input type="checkbox" id="scopeNormalGroup" /><span data-i18n="common.group">群聊</span></label>
+    </div>
+    <div class="section wechat-only">
+      <label class="opt"><input type="checkbox" id="wechatPrivate" /><span data-i18n="common.private">私信</span></label>
+      <label class="opt"><input type="checkbox" id="wechatGroup" /><span data-i18n="common.group">群聊</span></label>
+    </div>
+  </div>
+  <script src="i18n.js"></script>
+  <script src="tray-submenu.js"></script>
+</body>
+</html>

@@ -12,15 +12,18 @@ import { execFile, execFileSync, spawn } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { AppSettings, BannerItem, ConnectionState, EnvCheckResult, OB11MessageEvent, OB11NoticeEvent } from '../shared/types';
+import { AppSettings, BannerItem, ConnectionState, EnvCheckResult, OB11MessageEvent, OB11NoticeEvent, WechatMessagePayload } from '../shared/types';
+import { productName, translate, messages, Language } from '../shared/i18n';
 import { defaultSettings, loadSettings, saveSettings } from './config';
 import { runEnvChecks } from './env-check';
 import { OneBotClient } from './onebot';
-import { normalizeMessageEvent, normalizeNoticeEvent } from './normalize';
+import { normalizeMessageEvent, normalizeNoticeEvent, normalizeWechatMessage } from './normalize';
 import { BannerScheduler } from './banner-scheduler';
 import { QQWindowWatcher } from './qq-window-watcher';
+import { WechatWindowWatcher } from './wechat-window-watcher';
 import { DisplayPowerWatcher } from './display-power-watcher';
 import { NapCatManager } from './napcat-manager';
+import { WechatClient, WechatStateInfo } from './wechat';
 import { MouseClickWatcher } from './mouse-click-watcher';
 
 const isInstalledApp = fs.existsSync(installMarkerPath());
@@ -42,19 +45,23 @@ let settingsWindow: BrowserWindow | null = null;
 let bannerWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let trayMenuWindow: BrowserWindow | null = null;
+let traySubmenuWindow: BrowserWindow | null = null;
 let uninstallDialogWindow: BrowserWindow | null = null;
 let scheduler: BannerScheduler | null = null;
 let onebot: OneBotClient | null = null;
+let wechat: WechatClient | null = null;
 let bannerVisible = true;
 let bannerReady = false;
 let quitting = false;
 let qqForeground = false;
+let wechatForeground = false;
 let sessionLocked = false;
 let suspended = false;
 let displayOff = false;
 let powerMonitorBound = false;
 let displayPowerWatcher: DisplayPowerWatcher | null = null;
 let qqWindowWatcher: QQWindowWatcher | null = null;
+let wechatWindowWatcher: WechatWindowWatcher | null = null;
 let napcatManager: NapCatManager | null = null;
 let cachedSelfId = 0;
 let normalTrayImage = nativeImage.createEmpty();
@@ -92,7 +99,7 @@ function isSystemInactive(): boolean {
 }
 
 function effectiveBannerVisible(): boolean {
-  return bannerVisible && !qqForeground && !isSystemInactive();
+  return bannerVisible && !qqForeground && !wechatForeground && !isSystemInactive();
 }
 
 function applyBannerVisibility(): void {
@@ -227,6 +234,44 @@ async function handleNoticeEvent(ev: OB11NoticeEvent): Promise<void> {
   const item = await normalizeNoticeEvent(ev, settings, onebot);
   if (item && scheduler) scheduler.request(item);
 }
+function sendWechatState(info: WechatStateInfo): void {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send('wechat:state', info);
+  }
+}
+
+function startWechat(): void {
+  if (!settings.enableWechat) return;
+  if (wechat) wechat.stop();
+  wechat = new WechatClient();
+  wechat.setLanguage(settings.language);
+  wechat.on('state', (info: WechatStateInfo) => {
+    sendWechatState(info);
+  });
+  wechat.on('message', (payload: WechatMessagePayload) => {
+    void handleWechatMessage(payload);
+  });
+  wechat.start();
+}
+
+function stopWechat(): void {
+  if (wechat) {
+    wechat.stop();
+    wechat = null;
+  }
+}
+
+function restartWechat(): void {
+  stopWechat();
+  startWechat();
+}
+
+async function handleWechatMessage(payload: WechatMessagePayload): Promise<void> {
+  if (isSystemInactive()) return;
+  if (!scheduler) return;
+  const item = normalizeWechatMessage(payload, settings);
+  if (item && scheduler) scheduler.request(item);
+}
 
 function toggleBanner(): void {
   bannerVisible = !bannerVisible;
@@ -235,6 +280,7 @@ function toggleBanner(): void {
 }
 
 function closeTrayMenu(): void {
+  closeTraySubmenu();
   if (mouseClickWatcher) {
     mouseClickWatcher.stop();
     mouseClickWatcher = null;
@@ -242,6 +288,79 @@ function closeTrayMenu(): void {
   if (trayMenuWindow && !trayMenuWindow.isDestroyed()) {
     trayMenuWindow.close();
   }
+}
+
+function closeTraySubmenu(): void {
+  if (traySubmenuWindow && !traySubmenuWindow.isDestroyed()) {
+    traySubmenuWindow.close();
+  }
+}
+
+function sendTraySubmenuData(kind: 'qq' | 'wechat'): void {
+  if (!traySubmenuWindow || traySubmenuWindow.isDestroyed()) return;
+  traySubmenuWindow.webContents.send('tray:submenu-data', {
+    kind,
+    scope: {
+      scopeSpecialPrivate: settings.scopeSpecialPrivate,
+      scopeNormalPrivate: settings.scopeNormalPrivate,
+      scopeNormalGroup: settings.scopeNormalGroup,
+      wechatPrivate: settings.wechatPrivate,
+      wechatGroup: settings.wechatGroup
+    }
+  });
+}
+
+function showTraySubmenu(kind: 'qq' | 'wechat', top: number): void {
+  if (!trayMenuWindow || trayMenuWindow.isDestroyed()) return;
+  const dims = kind === 'qq' ? { width: 136, height: 180 } : { width: 136, height: 104 };
+  const positionSubmenu = () => {
+    if (!traySubmenuWindow || traySubmenuWindow.isDestroyed() || !trayMenuWindow || trayMenuWindow.isDestroyed()) return;
+    const b = trayMenuWindow.getBounds();
+    traySubmenuWindow.setBounds({
+      x: Math.round(b.x + b.width - 3),
+      y: Math.round(b.y + top - 4),
+      width: dims.width,
+      height: dims.height
+    }, false);
+  };
+  if (traySubmenuWindow && !traySubmenuWindow.isDestroyed()) {
+    positionSubmenu();
+    sendTraySubmenuData(kind);
+    if (!traySubmenuWindow.isVisible()) traySubmenuWindow.showInactive();
+    return;
+  }
+  traySubmenuWindow = new BrowserWindow({
+    width: dims.width,
+    height: dims.height,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    hasShadow: false,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, '..', 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+  traySubmenuWindow.setAlwaysOnTop(true, 'screen-saver', 1);
+  traySubmenuWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  traySubmenuWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  traySubmenuWindow.loadFile(rendererFile('tray-submenu.html'));
+  traySubmenuWindow.webContents.once('did-finish-load', () => {
+    if (!traySubmenuWindow || traySubmenuWindow.isDestroyed()) return;
+    positionSubmenu();
+    sendTraySubmenuData(kind);
+    traySubmenuWindow.showInactive();
+  });
+  traySubmenuWindow.on('closed', () => {
+    traySubmenuWindow = null;
+  });
 }
 
 function startOutsideClickWatcher(): void {
@@ -258,6 +377,11 @@ function startOutsideClickWatcher(): void {
     }
     const b = trayMenuWindow.getBounds();
     const inside = cursor.x >= b.x && cursor.x < b.x + b.width && cursor.y >= b.y && cursor.y < b.y + b.height;
+    if (traySubmenuWindow && !traySubmenuWindow.isDestroyed()) {
+      const sb = traySubmenuWindow.getBounds();
+      const insideSub = cursor.x >= sb.x && cursor.x < sb.x + sb.width && cursor.y >= sb.y && cursor.y < sb.y + sb.height;
+      if (insideSub) return;
+    }
     if (!inside) closeTrayMenu();
   });
 }
@@ -276,11 +400,13 @@ function removeShortcuts(): void {
     process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
     'Microsoft', 'Windows', 'Start Menu', 'Programs'
   );
-  for (const file of [
-    path.join(desktopDir, '流萤QQ弹窗显示.lnk'),
-    path.join(startMenuDir, '流萤QQ弹窗显示.lnk')
-  ]) {
-    try { if (fs.existsSync(file)) fs.unlinkSync(file); } catch { /* ignore */ }
+  for (const name of ['流萤QQ弹窗显示', 'Firefly QQ Danmaku']) {
+    for (const file of [
+      path.join(desktopDir, name + '.lnk'),
+      path.join(startMenuDir, name + '.lnk')
+    ]) {
+      try { if (fs.existsSync(file)) fs.unlinkSync(file); } catch { /* ignore */ }
+    }
   }
 }
 
@@ -304,7 +430,7 @@ function scheduleInstallDirDeletion(): void {
     `Wait-Process -Id ${pid} -ErrorAction SilentlyContinue`,
     'Start-Sleep -Milliseconds 800',
     `Remove-Item -LiteralPath '${dir}' -Recurse -Force`,
-    "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'powershell.exe' -and ($_.CommandLine -like '*QQForeground*' -or $_.CommandLine -like '*DisplayPowerWatcherForm*') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+    "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'powershell.exe' -and ($_.CommandLine -like '*QQForeground*' -or $_.CommandLine -like '*DisplayPowerWatcherForm*' -or $_.CommandLine -like '*WechatForeground*') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
   ].join('\r\n');
   try {
     const child = spawn('powershell.exe', [
@@ -377,7 +503,7 @@ function createTray(): void {
   const iconPath = path.join(__dirname, '..', '..', 'assets', 'tray.png');
   normalTrayImage = nativeImage.createFromPath(iconPath);
   tray = new Tray(normalTrayImage);
-  tray.setToolTip('流萤QQ弹窗显示');
+  tray.setToolTip(productName(settings.language));
   tray.on('click', () => {
     toggleTrayMenu();
   });
@@ -418,6 +544,25 @@ function updateTrayMenuVisibility(): void {
   }
 }
 
+function broadcastI18nChanged(lang: Language): void {
+  const wins = [installerWindow, settingsWindow, trayMenuWindow, traySubmenuWindow, uninstallDialogWindow];
+  for (const w of wins) {
+    if (w && !w.isDestroyed()) w.webContents.send('i18n:changed', lang);
+  }
+}
+
+function applyLanguage(lang: Language): void {
+  if (tray) tray.setToolTip(productName(lang));
+  if (wechat) wechat.setLanguage(lang);
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.setTitle(productName(lang) + ' - ' + translate(lang, 'settings.title'));
+  }
+  if (installerWindow && !installerWindow.isDestroyed()) {
+    installerWindow.setTitle(translate(lang, 'installer.windowTitle'));
+  }
+  broadcastI18nChanged(lang);
+}
+
 function openTrayMenu(): void {
   if (trayMenuWindow && !trayMenuWindow.isDestroyed()) {
     positionTrayMenuWindow();
@@ -429,8 +574,8 @@ function openTrayMenu(): void {
   }
 
   trayMenuWindow = new BrowserWindow({
-    width: 196,
-    height: 216,
+    width: 204,
+    height: 308,
     frame: false,
     transparent: true,
     resizable: false,
@@ -439,7 +584,7 @@ function openTrayMenu(): void {
     maximizable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
-    hasShadow: true,
+    hasShadow: false,
     show: false,
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload.js'),
@@ -460,6 +605,7 @@ function openTrayMenu(): void {
     }
   });
   trayMenuWindow.on('closed', () => {
+    closeTraySubmenu();
     trayMenuWindow = null;
   });
 }
@@ -472,7 +618,7 @@ function openSettings(): void {
   settingsWindow = new BrowserWindow({
     width: 560,
     height: 680,
-    title: '流萤QQ弹窗显示 - 设置',
+    title: productName(settings.language) + ' - ' + translate(settings.language, 'settings.title'),
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload.js'),
@@ -490,7 +636,7 @@ function createInstallerWindow(): void {
   installerWindow = new BrowserWindow({
     width: 760,
     height: 720,
-    title: '流萤QQ弹窗显示 - 环境检测与安装',
+    title: translate(settings.language, 'installer.windowTitle'),
     autoHideMenuBar: true,
     resizable: false,
     webPreferences: {
@@ -514,20 +660,21 @@ function createShortcuts(target: string): void {
     'Start Menu',
     'Programs'
   );
+  const displayName = productName(settings.language);
   const options = {
     target,
     cwd: path.dirname(target),
-    description: '流萤QQ弹窗显示',
+    description: displayName,
     icon: target,
     iconIndex: 0
   };
   try {
     fs.mkdirSync(startMenuDir, { recursive: true });
-    shell.writeShortcutLink(path.join(startMenuDir, '流萤QQ弹窗显示.lnk'), 'create', options);
+    shell.writeShortcutLink(path.join(startMenuDir, displayName + '.lnk'), 'create', options);
   } catch { /* ignore */ }
   try {
     if (fs.existsSync(desktopDir)) {
-      shell.writeShortcutLink(path.join(desktopDir, '流萤QQ弹窗显示.lnk'), 'create', options);
+      shell.writeShortcutLink(path.join(desktopDir, displayName + '.lnk'), 'create', options);
     }
   } catch { /* ignore */ }
 }
@@ -535,7 +682,7 @@ function createShortcuts(target: string): void {
 function writeUninstallEntry(target: string): void {
   const key = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\流萤QQ弹窗显示';
   const values: Array<[string, string]> = [
-    ['DisplayName', '流萤QQ弹窗显示'],
+    ['DisplayName', productName(settings.language)],
     ['DisplayVersion', app.getVersion()],
     ['Publisher', 'Firefly'],
     ['InstallLocation', path.dirname(target)],
@@ -599,26 +746,26 @@ function sendInstallProgress(percent: number, text: string): void {
 
 async function performInstall(): Promise<{ ok: boolean; installDir?: string; error?: string }> {
   try {
-    sendInstallProgress(5, '正在准备安装目录…');
+    sendInstallProgress(5, translate(settings.language, 'installer.progress.prepare'));
     const dir = installDir();
     fs.mkdirSync(dir, { recursive: true });
     const target = path.join(dir, '流萤QQ弹窗显示.exe');
-    sendInstallProgress(25, '正在复制主程序…');
+    sendInstallProgress(25, translate(settings.language, 'installer.progress.copy'));
     const source = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
     if (source && fs.existsSync(source) && path.resolve(source).toLowerCase() !== path.resolve(target).toLowerCase()) {
       fs.copyFileSync(source, target);
     }
-    sendInstallProgress(60, '正在写入安装信息…');
+    sendInstallProgress(60, translate(settings.language, 'installer.progress.info'));
     fs.writeFileSync(
       installMarkerPath(),
       JSON.stringify({ version: app.getVersion(), installedAt: Date.now() }, null, 2),
       'utf8'
     );
-    sendInstallProgress(80, '正在创建快捷方式…');
+    sendInstallProgress(80, translate(settings.language, 'installer.progress.shortcut'));
     createShortcuts(target);
-    sendInstallProgress(92, '正在写入卸载信息…');
+    sendInstallProgress(92, translate(settings.language, 'installer.progress.uninstall'));
     writeUninstallEntry(target);
-    sendInstallProgress(100, '安装完成');
+    sendInstallProgress(100, translate(settings.language, 'installer.progressDone'));
     return { ok: true, installDir: dir };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
@@ -654,11 +801,18 @@ function registerIpc(): void {
   ipcMain.handle('settings:get', (): AppSettings => settings);
 
   ipcMain.handle('settings:set', (_event, next: AppSettings): AppSettings => {
+    const oldWechat = settings.enableWechat;
+    const oldLanguage = settings.language;
     settings = saveSettings(next);
     applyBannerBounds();
+    if (oldLanguage !== settings.language) applyLanguage(settings.language);
     if (onebot && !quitting) {
       onebot.stop();
       onebot.start(settings);
+    }
+    if (!quitting) {
+      const wcChanged = oldWechat !== next.enableWechat;
+      if (wcChanged) restartWechat();
     }
     return settings;
   });
@@ -693,6 +847,27 @@ function registerIpc(): void {
   ipcMain.handle('tray:uninstall-confirm', (): void => {
     performUninstall();
   });
+  ipcMain.handle('tray:get-scope', (): { scopeSpecialPrivate: boolean; scopeNormalPrivate: boolean; scopeNormalGroup: boolean; wechatPrivate: boolean; wechatGroup: boolean } => ({
+    scopeSpecialPrivate: settings.scopeSpecialPrivate,
+    scopeNormalPrivate: settings.scopeNormalPrivate,
+    scopeNormalGroup: settings.scopeNormalGroup,
+    wechatPrivate: settings.wechatPrivate,
+    wechatGroup: settings.wechatGroup
+  }));
+  ipcMain.handle('tray:set-scope', (_event, patch: { scopeSpecialPrivate?: boolean; scopeNormalPrivate?: boolean; scopeNormalGroup?: boolean; wechatPrivate?: boolean; wechatGroup?: boolean }): { scopeSpecialPrivate: boolean; scopeNormalPrivate: boolean; scopeNormalGroup: boolean; wechatPrivate: boolean; wechatGroup: boolean } => {
+    settings = saveSettings({ ...settings, ...patch });
+    return {
+      scopeSpecialPrivate: settings.scopeSpecialPrivate,
+      scopeNormalPrivate: settings.scopeNormalPrivate,
+      scopeNormalGroup: settings.scopeNormalGroup,
+      wechatPrivate: settings.wechatPrivate,
+      wechatGroup: settings.wechatGroup
+    };
+  });
+  ipcMain.on('tray:submenu-show', (_event, data: { kind: 'qq' | 'wechat'; top: number }) => {
+    if (!data || (data.kind !== 'qq' && data.kind !== 'wechat') || typeof data.top !== 'number') return;
+    showTraySubmenu(data.kind, data.top);
+  });
   ipcMain.handle('tray:refresh', async (): Promise<boolean> => {
     let ok = false;
     try {
@@ -703,6 +878,19 @@ function registerIpc(): void {
     } catch { /* ignore */ }
     closeTrayMenu();
     return ok;
+  });
+
+  ipcMain.handle('i18n:get-language', (): Language => settings.language);
+  ipcMain.handle('i18n:set-language', (_event, lang: Language): Language => {
+    const next: Language = lang === 'en' ? 'en' : 'zh';
+    if (settings.language !== next) {
+      settings = saveSettings({ ...settings, language: next });
+      applyLanguage(next);
+    }
+    return settings.language;
+  });
+  ipcMain.handle('i18n:get-messages', (_event, lang: Language): Record<string, string> => {
+    return messages[lang === 'en' ? 'en' : 'zh'] || messages.zh;
   });
 }
 
@@ -733,6 +921,7 @@ function startInstalledApp(): void {
   createBannerWindow();
   createTray();
   startOneBot();
+  startWechat();
   // 路线B：LLOneBot 注入官方 QQ，禁止自动启动 NapCat，避免下线官方 QQ。
   napcatManager = new NapCatManager();
   // void napcatManager.start().catch(() => { /* NapCat 自动上线失败不阻塞程序 */ });
@@ -745,6 +934,11 @@ function startInstalledApp(): void {
   qqWindowWatcher = new QQWindowWatcher();
   qqWindowWatcher.start((foreground: boolean) => {
     qqForeground = foreground;
+    applyBannerVisibility();
+  });
+  wechatWindowWatcher = new WechatWindowWatcher();
+  wechatWindowWatcher.start((foreground: boolean) => {
+    wechatForeground = foreground;
     applyBannerVisibility();
   });
 }
@@ -785,8 +979,10 @@ app.on('before-quit', () => {
     displayPowerWatcher = null;
   }
   if (qqWindowWatcher) qqWindowWatcher.stop();
+  if (wechatWindowWatcher) wechatWindowWatcher.stop();
   if (scheduler) scheduler.clear();
   if (onebot) onebot.stop();
+  stopWechat();
   if (napcatManager) { void napcatManager.stop(); }
 });
 

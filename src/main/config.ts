@@ -10,11 +10,18 @@ export const defaultSettings: AppSettings = {
   showPrivate: true,
   showGroup: true,
   showNotice: true,
+  scopeSpecialPrivate: true,
+  scopeNormalPrivate: true,
+  scopeNormalGroup: true,
+  wechatPrivate: true,
+  wechatGroup: true,
   maxHeightPercent: 25,
   fontSize: 16,
   opacity: 0.92,
   widthPercent: 33,
-  secondsPerLine: 5
+  secondsPerLine: 5,
+  enableWechat: false,
+  language: 'zh'
 };
 
 let settings: AppSettings | null = null;
